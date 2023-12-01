@@ -10,7 +10,7 @@ internal class SetDifficulty : State
         Console.WriteLine($"What would you like the new difficulty to be?\nChoose from the options below:");
         foreach (int i in Enum.GetValues(typeof(Difficulty)))
         {
-            Console.WriteLine($"            {i} - {Enum.GetName(typeof(Difficulty), i)}");
+            Console.WriteLine($"            {i} - {Enum.GetName(typeof(Difficulty), i)} : {Helpers.GetDifficultyDescription(i)}");
         }
         Console.WriteLine($"            0 - Return to main menu");
     }
@@ -40,10 +40,10 @@ internal class SetDifficulty : State
                 _context._settings.Difficulty = Difficulty.Hard;
                 newState = new GameSettings();
                 break;
-            /* case 4:
+            case 4:
                 _context._settings.Difficulty = Difficulty.Impossible;
                 newState = new GameSettings();
-                break; */
+                break;
             default:
                 Console.WriteLine($"Invalid input. Select an option from above.\nPress Any Key");
                 Console.ReadLine();

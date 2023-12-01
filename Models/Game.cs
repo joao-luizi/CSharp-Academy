@@ -11,6 +11,6 @@ internal class Game
 
     public override string ToString()
     {
-        return $"{Date} : User Session Score: {UserScore} - Run Type: {Type}: {RunScore} pts";
+        return $"{Date} : User Session Score: {UserScore}; - Run Type: {Type}; Questions: {Questions}; Score:{RunScore} pts;";
     }
 }

@@ -1,11 +1,14 @@
+using System.Linq.Expressions;
+
 namespace Branch_Console;
 
 internal class MathOperation
 {
-    internal OperationType Operator { get; set; }
+    //the main operation type will allways exist in the expression and will be the first operator
+    internal OperationType Operators { get; set; }
     internal Difficulty OperationDifficulty { get; set; }
-    internal List<int> Operands { get; set; }
-    internal int OperationResult { get; set; }
+    internal List<string> Expressions { get; set; }
+    internal double OperationResult { get; set; }
 
     public override string ToString()
     {
@@ -13,11 +16,37 @@ internal class MathOperation
     }
     public string GetExpression()
     {
-        return $"{string.Join(Helpers.GetOperationSymbol(Operator), Operands.ToArray())}";
+        if (Expressions.Count >= 1)
+        {
+            return $"{Expressions[0]}";
+        }
+        else
+        {
+            return "";
+        }
     }
+
+    public string GetUserExpression()
+    {
+        if (Expressions.Count >= 2)
+        {
+            return $"{Expressions[1]}";
+        }
+        else
+        {
+            return "";
+        }
+    }
+
+
 }
 
-internal enum OperationType
+[Flags]
+internal enum OperationType : int
 {
-    Addition, Subtration, Multiplication, Division
+    None = 0,
+    Addition = 1,
+    Subtration = 2,
+    Multiplication = 4,
+    Division = 8
 }

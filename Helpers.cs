@@ -1,3 +1,6 @@
+using System.Reflection.Emit;
+using System.Text;
+
 namespace Branch_Console;
 
 internal class Helpers
@@ -23,10 +26,10 @@ internal class Helpers
         return result;
     }
 
-    internal static List<int> GetOperands(Difficulty difficulty)
+    internal static List<double> GetOperands(Difficulty difficulty)
     {
         Random rnd = new();
-        List<int> result = new();
+        List<double> result = new();
         switch (difficulty)
         {
             case Difficulty.Easy:
@@ -36,56 +39,36 @@ internal class Helpers
             case Difficulty.Normal:
                 result.Add(rnd.Next(-9, 9));
                 result.Add(rnd.Next(-9, 9));
+                result.Add(rnd.Next(-9, 9));
                 break;
             case Difficulty.Hard:
-                result.Add(rnd.Next(-19, 19));
-                result.Add(rnd.Next(-19, 19));
-                result.Add(rnd.Next(-19, 19));
+                result.Add(Math.Round(rnd.Next(-19, 19) * rnd.NextDouble(), 1, MidpointRounding.AwayFromZero));
+                result.Add(Math.Round(rnd.Next(-19, 19) * rnd.NextDouble(), 1, MidpointRounding.AwayFromZero));
+                result.Add(Math.Round(rnd.Next(-19, 19) * rnd.NextDouble(), 1, MidpointRounding.AwayFromZero));
+                result.Add(Math.Round(rnd.Next(-19, 19) * rnd.NextDouble(), 1, MidpointRounding.AwayFromZero));
+                break;
+            case Difficulty.Impossible:
+                result.Add(Math.Round(rnd.Next(-29, 29) * rnd.NextDouble(), 1, MidpointRounding.AwayFromZero));
+                result.Add(Math.Round(rnd.Next(-29, 29) * rnd.NextDouble(), 1, MidpointRounding.AwayFromZero));
+                result.Add(Math.Round(rnd.Next(-29, 29) * rnd.NextDouble(), 1, MidpointRounding.AwayFromZero));
+                result.Add(Math.Round(rnd.Next(-29, 29) * rnd.NextDouble(), 1, MidpointRounding.AwayFromZero));
                 break;
         }
         return result;
     }
 
-    internal static int? GetResult(OperationType mathOperation, List<int> Operands)
+    internal static double? GetResult(MathOperation mathOp)
     {
-        //the operands can have 2 or more operands the number of operations is ListCount - 1 
-        //3 operands = 3 - 1 = 2 Operations
-        //4 operands = 4 - 1 = 3 Operations and so forth
-        // Because our game has constraints on the type of game (addition, subtration, etc) we wont have to worry with order of operations 
-        int? result = null;
-        switch (mathOperation)
+
+        double? result = null;
+        Parser parser = new Parser(mathOp.GetExpression());
+        try
         {
-            case OperationType.Addition:
-                result = Operands[0];
-                for (int i = 1; i < Operands.Count; i++) // the first operand was already attributed we start here at 1
-                {
-                    result += Operands[i];
-                }
-                break;
-            case OperationType.Subtration:
-                result = Operands[0];
-                for (int i = 1; i < Operands.Count; i++) // the first operand was already attributed we start here at 1
-                {
-                    result -= Operands[i];
-                }
-                break;
-            case OperationType.Multiplication:
-                result = Operands[0];
-                for (int i = 1; i < Operands.Count; i++) // the first operand was already attributed we start here at 1
-                {
-                    result *= Operands[i];
-                }
-                break;
-            case OperationType.Division:
-                result = Operands[0];
-                for (int i = 1; i < Operands.Count; i++) // the first operand was already attributed we start here at 1
-                {
-                    if (Operands[i] == 0 || result % Operands[i] != 0)
-                        result = null;
-                    else
-                        result /= Operands[i];
-                }
-                break;
+            result = Math.Round(parser.ParseExpression().Eval(), 1, MidpointRounding.AwayFromZero);
+        }
+        catch (SyntaxException)
+        {
+            result = null;
         }
         return result;
     }
@@ -108,6 +91,10 @@ internal class Helpers
                 resultUpperBound = 80;
                 resultLowerBound = -80;
                 break;
+            case Difficulty.Impossible:
+                resultUpperBound = 180;
+                resultLowerBound = -180;
+                break;
         }
         return new int[] { resultLowerBound, resultUpperBound };
     }
@@ -119,8 +106,8 @@ internal class Helpers
         {
             OperationType.Addition => " + ",
             OperationType.Subtration => " - ",
-            OperationType.Multiplication => " * ",
-            OperationType.Division => " / ",
+            OperationType.Multiplication => " × ",
+            OperationType.Division => " ÷ ",
             _ => "",
         };
         return operationSymbol;
@@ -140,39 +127,102 @@ internal class Helpers
         return toReturn;
     }
 
-    internal static MathOperation GetOperation(OperationType? gameType, Difficulty difficulty)
+    internal static MathOperation GetOperation(OperationType? selectedGameType, Difficulty difficulty)
     {
-        int[] OperationResultBounds = Helpers.GetOperationBounds(difficulty);
-        int? operationResult = null;
-        List<int> operands = new();
-        OperationType opType;
-        if (gameType == null)
-        {
-            opType = Helpers.GetRandomGameType();
-        }
-        else
-        {
-            opType = (OperationType)gameType;
-        }
+        MathOperation newOperation = new MathOperation();
+        int[] OperationResultBounds = GetOperationBounds(difficulty);
+        double? operationResult = null;
+        OperationType OpType;
+
         while (operationResult == null || operationResult < OperationResultBounds[0] || operationResult > OperationResultBounds[1])
         {
-            operands = Helpers.GetOperands(difficulty);
-            operationResult = Helpers.GetResult(opType, operands);
+            newOperation = new MathOperation();
+            newOperation.OperationDifficulty = difficulty;
+            if (selectedGameType == null)
+            {
+                OpType = GetRandomGameType();
+            }
+            else
+            {
+                OpType = (OperationType)selectedGameType;
+            }
+            var operands = GetOperands(difficulty);
+            BuildExpressions(OpType, operands, newOperation);
+
+            operationResult = GetResult(newOperation);
         }
-        return new MathOperation() { Operator = opType, OperationDifficulty = difficulty, Operands = operands, OperationResult = (int)operationResult };
+        newOperation.OperationResult = (double)operationResult;
+        return newOperation;
+    }
+    internal static void BuildExpressions(OperationType OpType, List<double> operands, MathOperation mathOp)
+    {
+
+        List<string> tokens = new();
+        List<string> userTokens = new();
+
+        tokens.Add(operands[0].ToString());
+        tokens.Add(GetOperationSymbol(OpType));
+        tokens.Add(operands[1].ToString());
+        userTokens.Add(operands[0].ToString());
+        userTokens.Add(GetOperationSymbol(OpType));
+        userTokens.Add(operands[1] < 0 ? $"({operands[1]})" : $"{operands[1]}");
+
+        for (int i = 2; i < operands.Count; i++)
+        {
+            OperationType newOpType = GetRandomGameType();
+            if (!OpType.HasFlag(newOpType))
+            {
+                OpType |= newOpType;
+            }
+            tokens.Add(GetOperationSymbol(newOpType));
+            tokens.Add(operands[i].ToString());
+            userTokens.Add(GetOperationSymbol(newOpType));
+            userTokens.Add(operands[i] < 0 ? $"({operands[i]})" : $"{operands[i]}");
+        }
+        if (mathOp.OperationDifficulty == Difficulty.Impossible)
+        {
+            int index = tokens.FindLastIndex(x => x.Contains('+') || x.Contains('-'));
+            if (index < 0)
+            {
+                index = tokens.FindLastIndex(x => x.Contains('×') || x.Contains('÷'));
+            }
+            var indexBefore = index - 2 < 0 ? 0 : index - 2;
+            var indexAfter = index + 2 > tokens.Count ? tokens.Count : index + 2;
+
+            tokens.Insert(indexBefore, "(");
+            tokens.Insert(indexAfter, ")");
+            userTokens.Insert(indexBefore, "(");
+            userTokens.Insert(indexAfter, ")");
+
+        }
+        mathOp.Expressions = new List<string>() { string.Join(' ', tokens.ToArray()), string.Join(' ', userTokens.ToArray()) };
+        mathOp.Operators = OpType;
+
+
+
     }
 
     internal static string OperationTitle(OperationType operationType)
     {
         string operationName = "";
-        operationName = operationType switch
+        List<string> operators = new();
+        if (operationType.HasFlag(OperationType.Addition))
         {
-            OperationType.Addition => "Addition Game.",
-            OperationType.Subtration => "Substraction game.",
-            OperationType.Multiplication => "Multiplication game.",
-            OperationType.Division => "Division game.",
-            _ => "",
-        };
+            operators.Add("Addition");
+        }
+        if (operationType.HasFlag(OperationType.Subtration))
+        {
+            operators.Add("Subtration");
+        }
+        if (operationType.HasFlag(OperationType.Multiplication))
+        {
+            operators.Add("Multiplication");
+        }
+        if (operationType.HasFlag(OperationType.Division))
+        {
+            operators.Add("Division");
+        }
+        operationName = $"{string.Join(',', operators.ToArray())} Game.";
         return operationName;
     }
 
@@ -185,6 +235,7 @@ internal class Helpers
             Difficulty.Easy => 1,
             Difficulty.Normal => 2,
             Difficulty.Hard => 3,
+            Difficulty.Impossible => 4,
             _ => 0,
         };
         if (timerLeft >= 15)
@@ -193,4 +244,47 @@ internal class Helpers
         }
         return baseScore + timerBonus;
     }
+    internal static double ValidateInput(Difficulty difficulty, string input)
+    {
+        string reply = "";
+        double result;
+        if (difficulty == Difficulty.Easy || difficulty == Difficulty.Normal)
+        {
+            reply = "Your answer need to be an Integer. Try again.";
+        }
+        else
+        {
+            reply = "Your answer need to be an Integer or a Double. Try again.";
+        }
+        while (!double.TryParse(input, out result))
+        {
+            Console.WriteLine($"{reply}");
+            input = Console.ReadLine();
+        }
+        return result;
+    }
+
+    internal static string GetDifficultyDescription(int i)
+    {
+        string description = "";
+        switch (i)
+        {
+            case 1:
+                description = "Operands: Positive Integer from 1 to 9; Operations: one; Results: 1 to 20;";
+                break;
+            case 2:
+                description = "Operands Type: Integer from -9 to 9; Operations: two; Results: -40 to 40;";
+                break;
+            case 3:
+                description = "Operands Type: Double from -19 to 19; Operations: three; Results: -80 to 80;";
+                break;
+            case 4:
+                description = "Operands Type: Double from -29 to 29; Operations: three and one Parenthesis; Results: -160 to 160;";
+                break;
+        }
+        return description;
+    }
+
+
+
 }
